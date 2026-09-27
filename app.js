@@ -20,13 +20,32 @@ const statusEl = document.getElementById("status");
 const slingValueEl = document.getElementById("slingValue");
 const romanValueEl = document.getElementById("romanValue");
 
+// Añade ?debug a la URL para ver qué volumen reporta YouTube (útil en celulares).
+const DEBUG = new URLSearchParams(location.search).has("debug");
+
+function applyToPlayer() {
+  if (!playerReady) return;
+  player.setVolume(volume);
+  if (volume === 0) player.mute();
+  else player.unMute();
+}
+
+// En celulares el reproductor puede ignorar o restablecer el volumen si se cambió
+// antes de reproducir, al cargar o al cambiar de calidad. Se revisa y se reaplica.
+function syncPlayer() {
+  if (!playerReady) return;
+  const muted = player.isMuted();
+  if (player.getVolume() !== volume || muted !== (volume === 0)) applyToPlayer();
+  if (DEBUG) {
+    statusEl.textContent = "debug · pedido: " + volume +
+      " · YouTube: " + player.getVolume() + (player.isMuted() ? " (silenciado)" : "") +
+      " · estado: " + player.getPlayerState();
+  }
+}
+
 function setVolume(v) {
   volume = Math.max(0, Math.min(100, Math.round(v)));
-  if (playerReady) {
-    player.setVolume(volume);
-    if (volume === 0) player.mute();
-    else player.unMute();
-  }
+  applyToPlayer();
   slingValueEl.textContent = volume;
   romanValueEl.textContent = toRoman(volume);
   needsDraw = true;
@@ -52,6 +71,14 @@ window.onYouTubeIframeAPIReady = function () {
         statusEl.textContent = IS_IOS
           ? "Listo. Ojo: en iPhone/iPad solo funciona silenciar (volumen 0); el resto lo controlan los botones físicos."
           : "Listo. Dale play al video y prueba los controles.";
+        setInterval(syncPlayer, 1000);
+      },
+      onStateChange(e) {
+        // Al empezar a reproducir (o bufferizar) el reproductor móvil ya existe: reaplicar.
+        if (e.data === YT.PlayerState.PLAYING || e.data === YT.PlayerState.BUFFERING) {
+          applyToPlayer();
+          setTimeout(applyToPlayer, 300);
+        }
       },
       onError(e) {
         const hints = {
