@@ -1,0 +1,10 @@
+# Dependencias (si algún día se añade package.json)
+node_modules/
+
+# Configuración local de Vercel (la crea 'vercel' al enlazar el proyecto)
+.vercel/
+
+# Sistema / editor
+.DS_Store
+Thumbs.db
+.vscode/

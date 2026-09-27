@@ -1,0 +1,195 @@
+:root {
+  --bg: #f3efe6;
+  --card: #fffdf8;
+  --ink: #2b2620;
+  --muted: #6f665a;
+  --accent: #d6452f;
+  --accent-ink: #fff;
+  --line: #e2dccf;
+  --gold: #b8892b;
+  --error: #b3261e;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1b1916;
+    --card: #25221e;
+    --ink: #efe9df;
+    --muted: #a99f90;
+    --line: #3a352e;
+    --gold: #e0b555;
+    --error: #ff8a80;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  overflow-x: hidden;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  line-height: 1.45;
+}
+
+/* Respeta el notch y las esquinas redondeadas de los celulares. */
+.top,
+.layout {
+  --gutter: 16px;
+  padding-left: max(var(--gutter), env(safe-area-inset-left));
+  padding-right: max(var(--gutter), env(safe-area-inset-right));
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.top {
+  padding-top: max(24px, env(safe-area-inset-top));
+  padding-bottom: 8px;
+}
+.top h1 { margin: 0 0 4px; font-size: clamp(1.4rem, 4vw, 2.2rem); }
+.top p { margin: 0; color: var(--muted); }
+
+.layout {
+  display: grid;
+  gap: 16px;
+  padding-top: 16px;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  grid-template-columns: 1fr;
+}
+
+/* Celulares pequeños (iPhone SE, Android de gama baja) */
+@media (max-width: 380px) {
+  .top, .layout { --gutter: 10px; }
+  .layout { gap: 10px; }
+  .layout .card { padding: 12px; }
+}
+
+/* Celular en horizontal: el video no debe ocupar más que la pantalla. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .top { padding-top: max(12px, env(safe-area-inset-top)); }
+  .top p { display: none; }
+  .video-wrap { max-width: calc(78vh * 16 / 9); margin: 0 auto; }
+}
+
+@media (min-width: 900px) {
+  .layout {
+    grid-template-columns: 3fr 2fr;
+  }
+  .video-card { grid-column: 1 / -1; }
+}
+
+@media (min-width: 1200px) {
+  .layout {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+  min-width: 0;
+}
+.card h2 { margin: 0 0 4px; font-size: 1.2rem; }
+.hint { margin: 0 0 12px; color: var(--muted); font-size: .95rem; }
+
+/* 16:9 con padding en vez de aspect-ratio, para que funcione en celulares antiguos. */
+.video-wrap {
+  position: relative;
+  width: 100%;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #000;
+}
+.video-wrap::before {
+  content: "";
+  display: block;
+  padding-top: 56.25%;
+}
+.video-wrap iframe,
+.video-wrap #player {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.status { margin: 10px 0 0; color: var(--muted); font-size: .9rem; overflow-wrap: anywhere; }
+
+/* Tirachinas */
+.canvas-wrap {
+  width: 100%;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+#sling {
+  display: block;
+  width: 100%;
+  touch-action: none;
+  cursor: grab;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+#sling.dragging { cursor: grabbing; }
+.readout { margin: 10px 0 0; }
+.readout strong { font-variant-numeric: tabular-nums; font-size: 1.2rem; }
+
+/* Romano */
+.roman-form {
+  display: flex;
+  gap: 8px;
+}
+.roman-form input {
+  flex: 1;
+  min-width: 0;
+  /* 1.3rem > 16px: evita que iOS haga zoom al tocar el campo. */
+  font: 600 1.3rem/1.2 Georgia, "Times New Roman", serif;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  min-height: 48px;
+  padding: 10px 12px;
+  -webkit-appearance: none;
+  appearance: none;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--ink);
+}
+.roman-form input:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
+
+.error { min-height: 1.4em; margin: 6px 0; color: var(--error); font-size: .9rem; }
+
+.roman-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 18px 12px;
+  border: 2px solid var(--gold);
+  border-radius: 10px;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 22px, rgba(184,137,43,.08) 22px 24px);
+}
+.roman-label {
+  font-size: .8rem;
+  text-transform: uppercase;
+  letter-spacing: .15em;
+  color: var(--muted);
+}
+.roman-value {
+  font: 700 clamp(2.2rem, 8vw, 3.4rem)/1.1 Georgia, "Times New Roman", serif;
+  letter-spacing: .08em;
+  color: var(--gold);
+  word-break: break-all;
+  text-align: center;
+}

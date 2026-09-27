@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f3efe6" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1b1916" media="(prefers-color-scheme: dark)">
+  <title>Volumen Raro</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top">
+    <h1>Volumen Raro</h1>
+    <p>Dos controles de volumen poco convencionales para un video de YouTube.</p>
+  </header>
+
+  <main class="layout">
+    <section class="card video-card">
+      <div class="video-wrap">
+        <div id="player"></div>
+      </div>
+      <p class="status" id="status">Cargando video…</p>
+    </section>
+
+    <section class="card">
+      <h2>ahi te ves</h2>
+      <p class="hint">Estilo angry birds.</p>
+      <div class="canvas-wrap" id="slingWrap">
+        <canvas id="sling" aria-label="Tirachinas de volumen"></canvas>
+      </div>
+      <p class="readout">Volumen: <strong id="slingValue">—</strong></p>
+    </section>
+
+    <section class="card">
+      <h2>Volumen romano</h2>
+      <form id="romanForm" class="roman-form" autocomplete="off">
+        <input id="romanInput" type="text" inputmode="text" spellcheck="false"
+               autocapitalize="characters" autocorrect="off" autocomplete="off"
+               enterkeyhint="done" maxlength="12" aria-label="Volumen">
+      </form>
+      <p class="error" id="romanError" role="alert"></p>
+      <div class="roman-display" aria-live="polite">
+        <span class="roman-label">Volumen actual</span>
+        <span class="roman-value" id="romanValue">—</span>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+  <script src="https://www.youtube.com/iframe_api"></script>
+</body>
+</html>
