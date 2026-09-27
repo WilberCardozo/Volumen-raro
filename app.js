@@ -1,99 +1,161 @@
-/* =========================================================
- *  CONFIGURACIÓN: cambia aquí el video de YouTube.
- *  Acepta el ID ("M7lc1UVf-VE") o una URL completa
- *  (watch?v=, youtu.be/, /embed/, /shorts/, /live/).
- * ========================================================= */
-const YOUTUBE_VIDEO = "https://youtu.be/3OO1ahEZwVg?list=RD3OO1ahEZwVg";
 const INITIAL_VOLUME = 50;
 
 /* ---------------- Estado compartido ---------------- */
 let volume = INITIAL_VOLUME;
-let player = null;
-let playerReady = false;
 let needsDraw = true;
-
-// En iPhone/iPad el sistema no deja que una página cambie el volumen: solo silenciar.
-const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
 const statusEl = document.getElementById("status");
 const slingValueEl = document.getElementById("slingValue");
 const romanValueEl = document.getElementById("romanValue");
 
-// Añade ?debug a la URL para ver qué volumen reporta YouTube (útil en celulares).
-const DEBUG = new URLSearchParams(location.search).has("debug");
-
-function applyToPlayer() {
-  if (!playerReady) return;
-  player.setVolume(volume);
-  if (volume === 0) player.mute();
-  else player.unMute();
-}
-
-// En celulares el reproductor puede ignorar o restablecer el volumen si se cambió
-// antes de reproducir, al cargar o al cambiar de calidad. Se revisa y se reaplica.
-function syncPlayer() {
-  if (!playerReady) return;
-  const muted = player.isMuted();
-  if (player.getVolume() !== volume || muted !== (volume === 0)) applyToPlayer();
-  if (DEBUG) {
-    statusEl.textContent = "debug · pedido: " + volume +
-      " · YouTube: " + player.getVolume() + (player.isMuted() ? " (silenciado)" : "") +
-      " · estado: " + player.getPlayerState();
-  }
-}
-
 function setVolume(v) {
   volume = Math.max(0, Math.min(100, Math.round(v)));
-  applyToPlayer();
+  applyVolume();
   slingValueEl.textContent = volume;
   romanValueEl.textContent = toRoman(volume);
   needsDraw = true;
 }
 
-/* ---------------- YouTube ---------------- */
-function extractVideoId(input) {
-  const s = input.trim();
-  if (/^[\w-]{11}$/.test(s)) return s;
-  const m = s.match(/(?:v=|youtu\.be\/|\/embed\/|\/shorts\/|\/live\/)([\w-]{11})/);
-  return m ? m[1] : s;
+/* ---------------- Reproductor + Web Audio ----------------
+ * El sonido del <video> pasa por un GainNode de Web Audio. Así el volumen
+ * funciona en todos lados, incluido iPhone/iPad, donde video.volume es de
+ * solo lectura.
+ */
+const video = document.getElementById("video");
+const videoWrap = document.getElementById("videoWrap");
+const picker = document.getElementById("picker");
+const fileInput = document.getElementById("fileInput");
+const controls = document.getElementById("controls");
+const playBtn = document.getElementById("playBtn");
+const seek = document.getElementById("seek");
+const timeEl = document.getElementById("time");
+const changeBtn = document.getElementById("changeBtn");
+
+let audioCtx = null;
+let gainNode = null;
+let currentUrl = null;
+
+// En iPhone, el audio que pasa por Web Audio respeta el interruptor de silencio
+// salvo que la sesión se declare como reproducción.
+if (navigator.audioSession) {
+  try { navigator.audioSession.type = "playback"; } catch (_) {}
 }
 
-// La API de YouTube llama a esta función global cuando termina de cargar.
-window.onYouTubeIframeAPIReady = function () {
-  player = new YT.Player("player", {
-    videoId: extractVideoId(YOUTUBE_VIDEO),
-    playerVars: { playsinline: 1, rel: 0 },
-    events: {
-      onReady() {
-        playerReady = true;
-        setVolume(volume);
-        statusEl.textContent = IS_IOS
-          ? "Listo. Ojo: en iPhone/iPad solo funciona silenciar (volumen 0); el resto lo controlan los botones físicos."
-          : "Listo. Dale play al video y prueba los controles.";
-        setInterval(syncPlayer, 1000);
-      },
-      onStateChange(e) {
-        // Al empezar a reproducir (o bufferizar) el reproductor móvil ya existe: reaplicar.
-        if (e.data === YT.PlayerState.PLAYING || e.data === YT.PlayerState.BUFFERING) {
-          applyToPlayer();
-          setTimeout(applyToPlayer, 300);
-        }
-      },
-      onError(e) {
-        const hints = {
-          2: "ID de video inválido.",
-          5: "El video no se puede reproducir en HTML5.",
-          100: "El video no existe o es privado.",
-          101: "El dueño no permite insertarlo en otras páginas.",
-          150: "El dueño no permite insertarlo en otras páginas.",
-          153: "Abre la página desde un servidor local (http://), no con doble clic (file://).",
-        };
-        statusEl.textContent = "Error de YouTube (" + e.data + "): " + (hints[e.data] || "desconocido.");
-      },
-    },
-  });
-};
+// El AudioContext solo puede arrancar tras un toque o tecla del usuario.
+function ensureAudio() {
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return;
+  if (!audioCtx) {
+    audioCtx = new AC();
+    gainNode = audioCtx.createGain();
+    gainNode.gain.value = volume / 100;
+    video.volume = 1; // a partir de aquí manda solo la ganancia
+    audioCtx.createMediaElementSource(video).connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+  }
+  if (audioCtx.state !== "running") audioCtx.resume();
+}
+["pointerdown", "touchend", "keydown"].forEach((type) =>
+  document.addEventListener(type, ensureAudio, { passive: true })
+);
+
+function applyVolume() {
+  const level = volume / 100;
+  if (gainNode) {
+    gainNode.gain.setTargetAtTime(level, audioCtx.currentTime, 0.02);
+  } else {
+    video.volume = level; // Respaldo sin Web Audio (no funciona en iPhone)
+  }
+}
+
+function loadFile(file) {
+  if (!file) return;
+  if (!/^(video|audio)\//.test(file.type) && !/\.(mp4|m4v|mov|webm|ogv|mkv|mp3|m4a|wav|ogg)$/i.test(file.name)) {
+    statusEl.textContent = "Ese archivo no parece un video.";
+    return;
+  }
+  if (currentUrl) URL.revokeObjectURL(currentUrl);
+  currentUrl = URL.createObjectURL(file);
+  video.src = currentUrl;
+  video.hidden = false;
+  picker.hidden = true;
+  controls.hidden = false;
+  statusEl.textContent = file.name;
+}
+
+fileInput.addEventListener("change", () => {
+  loadFile(fileInput.files[0]);
+  fileInput.value = ""; // permite volver a elegir el mismo archivo
+});
+
+videoWrap.addEventListener("dragover", (e) => {
+  e.preventDefault();
+  videoWrap.classList.add("dragover");
+});
+videoWrap.addEventListener("dragleave", () => videoWrap.classList.remove("dragover"));
+videoWrap.addEventListener("drop", (e) => {
+  e.preventDefault();
+  videoWrap.classList.remove("dragover");
+  loadFile(e.dataTransfer.files[0]);
+});
+
+picker.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    fileInput.click();
+  }
+});
+
+changeBtn.addEventListener("click", () => {
+  video.pause();
+  fileInput.click();
+});
+
+function togglePlay() {
+  ensureAudio();
+  if (video.paused || video.ended) video.play().catch(() => {});
+  else video.pause();
+}
+playBtn.addEventListener("click", togglePlay);
+video.addEventListener("click", togglePlay);
+
+video.addEventListener("play", () => {
+  playBtn.textContent = "❚❚";
+  playBtn.setAttribute("aria-label", "Pausar");
+});
+video.addEventListener("pause", () => {
+  playBtn.textContent = "▶";
+  playBtn.setAttribute("aria-label", "Reproducir");
+});
+
+function formatTime(s) {
+  if (!isFinite(s)) return "0:00";
+  s = Math.floor(s);
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  const mm = h ? String(m).padStart(2, "0") : m;
+  return (h ? h + ":" : "") + mm + ":" + String(sec).padStart(2, "0");
+}
+
+let seeking = false;
+function updateTime() {
+  if (!seeking && video.duration) seek.value = (video.currentTime / video.duration) * 1000;
+  timeEl.textContent = formatTime(video.currentTime) + " / " + formatTime(video.duration);
+}
+video.addEventListener("timeupdate", updateTime);
+video.addEventListener("loadedmetadata", updateTime);
+
+seek.addEventListener("input", () => {
+  seeking = true;
+  if (video.duration) video.currentTime = (seek.value / 1000) * video.duration;
+});
+seek.addEventListener("change", () => { seeking = false; });
+
+video.addEventListener("error", () => {
+  statusEl.textContent = "Este navegador no puede reproducir ese formato. Prueba con un MP4.";
+  video.hidden = true;
+  controls.hidden = true;
+  picker.hidden = false;
+});
 
 /* ---------------- Números romanos ---------------- */
 const ROMAN_TABLE = [

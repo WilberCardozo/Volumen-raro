@@ -11,15 +11,27 @@
 <body>
   <header class="top">
     <h1>Volumen Raro</h1>
-    <p>Dos controles de volumen poco convencionales para un video de YouTube.</p>
+    <p>Dos controles de volumen poco convencionales para un video que elijas.</p>
   </header>
 
   <main class="layout">
     <section class="card video-card">
-      <div class="video-wrap">
-        <div id="player"></div>
+      <div class="video-wrap" id="videoWrap">
+        <video id="video" playsinline preload="metadata" hidden></video>
+        <input type="file" id="fileInput" class="visually-hidden" accept="video/*,audio/*" tabindex="-1">
+        <label class="picker" id="picker" for="fileInput" tabindex="0">
+          <span class="picker-icon" aria-hidden="true">🎬</span>
+          <span class="picker-title">Elige un video</span>
+          <span class="picker-sub">Toca aquí o arrastra un archivo. No se sube a ningún sitio.</span>
+        </label>
       </div>
-      <p class="status" id="status">Cargando video…</p>
+      <div class="player-controls" id="controls" hidden>
+        <button type="button" id="playBtn" aria-label="Reproducir">▶</button>
+        <input type="range" id="seek" min="0" max="1000" value="0" step="1" aria-label="Posición">
+        <span class="time" id="time">0:00 / 0:00</span>
+        <button type="button" id="changeBtn" class="secondary">Cambiar</button>
+      </div>
+      <p class="status" id="status">Elige un video para empezar.</p>
     </section>
 
     <section class="card">
@@ -47,6 +59,5 @@
   </main>
 
   <script src="app.js"></script>
-  <script src="https://www.youtube.com/iframe_api"></script>
 </body>
 </html>
